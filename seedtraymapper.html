@@ -399,7 +399,35 @@
         },
         svg: {
           pixelsPerCell: 40,
-          labelDy: "0.35em"
+          labelDy: "0.35em",
+          backgroundFill: "#fff",
+          gridGroup: {
+            stroke: "#888",
+            strokeWidth: "0.01",
+            vectorEffect: "non-scaling-stroke",
+            shapeRendering: "crispEdges"
+          },
+          zoneBorderGroup: {
+            fill: "none",
+            stroke: "#000",
+            strokeWidth: "0.06",
+            vectorEffect: "non-scaling-stroke",
+            shapeRendering: "crispEdges"
+          },
+          labelGroup: {
+            fontFamily: "sans-serif",
+            fontSize: "0.4",
+            fontWeight: "700",
+            fill: "#000",
+            textAnchor: "middle"
+          },
+          frameRect: {
+            fill: "none",
+            stroke: "#000",
+            strokeWidth: "0.06",
+            vectorEffect: "non-scaling-stroke",
+            shapeRendering: "crispEdges"
+          }
         },
         messages: {
           selectZoneToFill: "Add/select a zone first to fill blank cells.",
@@ -1059,36 +1087,41 @@
         verticalGridLines,
         horizontalGridLines
       }) {
+        const grid = CONFIG.svg.gridGroup;
+        const zoneBorder = CONFIG.svg.zoneBorderGroup;
+        const label = CONFIG.svg.labelGroup;
+        const frame = CONFIG.svg.frameRect;
+
         return [
           `<svg xmlns="http://www.w3.org/2000/svg"`,
           `     width="${width}" height="${height}" viewBox="0 0 ${colCount} ${rowCount}"`,
           `     preserveAspectRatio="none">`,
           "",
-          `  <rect x="0" y="0" width="${colCount}" height="${rowCount}" fill="#fff"/>`,
+          `  <rect x="0" y="0" width="${colCount}" height="${rowCount}" fill="${CONFIG.svg.backgroundFill}"/>`,
           "",
           "  <!-- fills (cell units) -->",
           ...(fillLines.length ? fillLines : ["  <!-- no zones painted yet -->"]),
           "",
           "  <!-- gridlines -->",
-          "  <g stroke=\"#888\" stroke-width=\"0.01\" vector-effect=\"non-scaling-stroke\" shape-rendering=\"crispEdges\">",
+          `  <g stroke="${grid.stroke}" stroke-width="${grid.strokeWidth}" vector-effect="${grid.vectorEffect}" shape-rendering="${grid.shapeRendering}">`,
           ...verticalGridLines,
           ...horizontalGridLines,
           "  </g>",
           "",
           "  <!-- zone borders -->",
-          "  <g fill=\"none\" stroke=\"#000\" stroke-width=\"0.06\" vector-effect=\"non-scaling-stroke\" shape-rendering=\"crispEdges\">",
+          `  <g fill="${zoneBorder.fill}" stroke="${zoneBorder.stroke}" stroke-width="${zoneBorder.strokeWidth}" vector-effect="${zoneBorder.vectorEffect}" shape-rendering="${zoneBorder.shapeRendering}">`,
           ...(borderLines.length ? borderLines : ["    <!-- no zone borders yet -->"]),
           "  </g>",
           "",
           "  <!-- labels -->",
-          "  <g font-family=\"sans-serif\" font-size=\"0.4\" font-weight=\"700\" fill=\"#000\"",
-          "     text-anchor=\"middle\">",
+          `  <g font-family="${label.fontFamily}" font-size="${label.fontSize}" font-weight="${label.fontWeight}" fill="${label.fill}"`,
+          `     text-anchor="${label.textAnchor}">`,
           ...(labelLines.length ? labelLines : ["    <!-- no labels yet -->"]),
           "  </g>",
           "",
           `  <rect x="0" y="0" width="${colCount}" height="${rowCount}"`,
-          "        fill=\"none\" stroke=\"#000\" stroke-width=\"0.06\"",
-          "        vector-effect=\"non-scaling-stroke\" shape-rendering=\"crispEdges\"/>",
+          `        fill="${frame.fill}" stroke="${frame.stroke}" stroke-width="${frame.strokeWidth}"`,
+          `        vector-effect="${frame.vectorEffect}" shape-rendering="${frame.shapeRendering}"/>`,
           "</svg>"
         ].join("\n");
       }
