@@ -687,17 +687,11 @@
             const queue = [[r, c]];
             visited[r][c] = true;
             let head = 0;
-            let minRow = r;
-            let maxRow = r;
-            let minCol = c;
-            let maxCol = c;
+            const componentCells = [];
 
             while (head < queue.length) {
               const [row, col] = queue[head++];
-              minRow = Math.min(minRow, row);
-              maxRow = Math.max(maxRow, row);
-              minCol = Math.min(minCol, col);
-              maxCol = Math.max(maxCol, col);
+              componentCells.push({ row, col });
 
               for (const [dr, dc] of directions) {
                 const nr = row + dr;
@@ -713,9 +707,34 @@
               }
             }
 
+            let centerX = 0;
+            let centerY = 0;
+            for (const cell of componentCells) {
+              centerX += cell.col + 0.5;
+              centerY += cell.row + 0.5;
+            }
+            centerX /= componentCells.length;
+            centerY /= componentCells.length;
+
+            let bestCell = componentCells[0];
+            let bestDistance = Number.POSITIVE_INFINITY;
+            for (const cell of componentCells) {
+              const dx = (cell.col + 0.5) - centerX;
+              const dy = (cell.row + 0.5) - centerY;
+              const distance = (dx * dx) + (dy * dy);
+
+              if (
+                distance < bestDistance ||
+                (distance === bestDistance && (cell.row < bestCell.row || (cell.row === bestCell.row && cell.col < bestCell.col)))
+              ) {
+                bestDistance = distance;
+                bestCell = cell;
+              }
+            }
+
             labels.push({
-              x: (minCol + maxCol + 1) / 2,
-              y: (minRow + maxRow + 1) / 2
+              x: bestCell.col + 0.5,
+              y: bestCell.row + 0.5
             });
           }
         }
