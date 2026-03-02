@@ -1273,10 +1273,10 @@
         commitChange(() => {
           for (let r = minRow; r <= maxRow; r += 1) {
             for (let c = minCol; c <= maxCol; c += 1) {
-              if (state.cells[r][c] === null) {
-                state.cells[r][c] = activeZone.id;
-              } else {
+              if (state.cells[r][c] === activeZone.id) {
                 state.cells[r][c] = null;
+              } else {
+                state.cells[r][c] = activeZone.id;
               }
             }
           }
