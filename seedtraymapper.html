@@ -377,6 +377,7 @@
         copyBtn: document.getElementById("copyBtn"),
         downloadBtn: document.getElementById("downloadBtn")
       };
+      const LABEL_Y_OFFSET = 0.06;
 
       function createEmptyCells(rows, cols) {
         return Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
@@ -734,7 +735,7 @@
 
             labels.push({
               x: bestCell.col + 0.5,
-              y: bestCell.row + 0.5
+              y: bestCell.row + 0.5 + LABEL_Y_OFFSET
             });
           }
         }
