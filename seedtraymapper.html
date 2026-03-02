@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seed Tray SVG Zone Mapper</title>
+  <style>
+    :root {
+      --bg-1: #f4efe4;
+      --bg-2: #dbe8d4;
+      --panel: #fffdf8;
+      --panel-2: #f7f3ea;
+      --ink: #22262b;
+      --muted: #5c666f;
+      --line: #c4ccbf;
+      --accent: #2f6a47;
+      --warning: #8f3b2f;
+      --shadow: 0 12px 28px rgba(22, 32, 18, 0.13);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI Variable", "Trebuchet MS", "Gill Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.62), transparent 42%),
+        radial-gradient(circle at 88% 15%, rgba(255, 255, 255, 0.5), transparent 33%),
+        linear-gradient(155deg, var(--bg-1), var(--bg-2));
+      padding: 1.2rem;
+    }
+
+    .layout {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.95rem;
+      box-shadow: var(--shadow);
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      margin-bottom: 0.65rem;
+    }
+
+    h2 {
+      font-size: 0.95rem;
+      margin-bottom: 0.55rem;
+      color: var(--muted);
+    }
+
+    .help {
+      margin: 0.4rem 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
+    .controls {
+      display: grid;
+      gap: 0.9rem;
+      position: sticky;
+      top: 1rem;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 0.5rem;
+      align-items: end;
+    }
+
+    label {
+      display: grid;
+      gap: 0.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    input[type="number"],
+    textarea,
+    button {
+      font: inherit;
+    }
+
+    input[type="number"],
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.45rem 0.55rem;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    textarea {
+      font-family: "IBM Plex Mono", "Cascadia Code", "Consolas", monospace;
+      min-height: 190px;
+      resize: vertical;
+      line-height: 1.3;
+      font-size: 0.8rem;
+    }
+
+    button {
+      border: 1px solid #547e62;
+      background: #3f8159;
+      color: #fff;
+      border-radius: 8px;
+      padding: 0.5rem 0.65rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    button:hover {
+      filter: brightness(1.05);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.secondary {
+      background: #eef4ee;
+      color: #2b4634;
+      border-color: #8aa38f;
+    }
+
+    button.warn {
+      border-color: #8f3b2f;
+      background: #ab4f40;
+    }
+
+    .zones {
+      display: grid;
+      gap: 0.45rem;
+      max-height: 280px;
+      overflow: auto;
+      padding-right: 0.2rem;
+    }
+
+    .zone-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto auto;
+      align-items: center;
+      gap: 0.45rem;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 0.35rem 0.45rem;
+    }
+
+    .zone-item.active {
+      border-color: #56806a;
+      box-shadow: 0 0 0 2px rgba(63, 129, 89, 0.16);
+    }
+
+    .zone-item input[type="number"] {
+      width: 4.4rem;
+      padding: 0.28rem 0.35rem;
+    }
+
+    .zone-item input[type="color"] {
+      width: 2rem;
+      height: 1.8rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .zone-item button {
+      padding: 0.2rem 0.45rem;
+      font-size: 0.8rem;
+      background: #f8eeec;
+      border-color: #b08a83;
+      color: #6f362f;
+    }
+
+    .mode-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .mode-btn.active {
+      background: #2f6a47;
+      color: #fff;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .editor-panel {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .grid-wrap {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 0.7rem;
+      box-shadow: inset 0 0 0 1px rgba(85, 104, 84, 0.06);
+    }
+
+    .grid {
+      --cols: 12;
+      display: grid;
+      width: 100%;
+      grid-template-columns: repeat(var(--cols), minmax(20px, 1fr));
+      gap: 1px;
+      background: #95a08e;
+      border: 1px solid #95a08e;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .grid-cell {
+      aspect-ratio: 1;
+      background: #fff;
+      border: none;
+      margin: 0;
+      padding: 0;
+      cursor: crosshair;
+      transition: filter 80ms ease;
+      position: relative;
+    }
+
+    .grid-cell.preview {
+      box-shadow: inset 0 0 0 2px rgba(46, 79, 118, 0.9);
+      filter: brightness(0.94);
+    }
+
+    .status {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      min-height: 1.2rem;
+    }
+
+    .preview-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.7rem;
+    }
+
+    .svg-preview {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 0.55rem;
+      min-height: 150px;
+    }
+
+    .svg-preview svg {
+      width: 100%;
+      height: auto;
+      max-height: 360px;
+      display: block;
+    }
+
+    .export-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 1020px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="layout">
+    <aside class="controls">
+      <section class="panel">
+        <h1>Seed Tray SVG Zone Mapper</h1>
+        <p class="help">Drag on the grid to paint rectangular zones. Each zone has a number label and color that exports into SVG.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Grid Size</h2>
+        <div class="row">
+          <label>
+            Rows
+            <input id="rowsInput" type="number" min="1" max="64" value="6">
+          </label>
+          <label>
+            Columns
+            <input id="colsInput" type="number" min="1" max="64" value="12">
+          </label>
+          <button id="resizeBtn" class="secondary" type="button">Resize</button>
+        </div>
+        <div class="export-buttons" style="margin-top: 0.55rem;">
+          <button id="clearGridBtn" class="secondary" type="button">Clear Grid</button>
+          <button id="resetBtn" class="secondary" type="button">Reset 6x12</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Paint Mode</h2>
+        <div class="mode-row">
+          <button id="paintModeBtn" class="mode-btn active" type="button">Paint Zone</button>
+          <button id="eraseModeBtn" class="mode-btn" type="button">Erase</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Zones</h2>
+        <div class="export-buttons" style="margin-bottom: 0.55rem;">
+          <button id="addZoneBtn" type="button">Add Zone</button>
+        </div>
+        <div id="zonesList" class="zones"></div>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <section class="panel editor-panel">
+        <h2>Grid Editor</h2>
+        <div class="grid-wrap">
+          <div id="grid" class="grid" aria-label="zone grid"></div>
+        </div>
+        <p id="statusText" class="status"></p>
+      </section>
+
+      <section class="panel preview-panel">
+        <h2>Live SVG Preview</h2>
+        <div id="svgPreview" class="svg-preview"></div>
+
+        <h2>SVG Output</h2>
+        <textarea id="svgOutput" spellcheck="false"></textarea>
+        <div class="export-buttons">
+          <button id="copyBtn" class="secondary" type="button">Copy SVG</button>
+          <button id="downloadBtn" class="secondary" type="button">Download .svg</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const state = {
+        rows: 6,
+        cols: 12,
+        cells: [],
+        zones: [],
+        activeZoneId: null,
+        mode: "paint",
+        isDragging: false,
+        dragStart: null,
+        dragCurrent: null,
+        nextZoneId: 1
+      };
+
+      const els = {
+        rowsInput: document.getElementById("rowsInput"),
+        colsInput: document.getElementById("colsInput"),
+        resizeBtn: document.getElementById("resizeBtn"),
+        clearGridBtn: document.getElementById("clearGridBtn"),
+        resetBtn: document.getElementById("resetBtn"),
+        paintModeBtn: document.getElementById("paintModeBtn"),
+        eraseModeBtn: document.getElementById("eraseModeBtn"),
+        addZoneBtn: document.getElementById("addZoneBtn"),
+        zonesList: document.getElementById("zonesList"),
+        grid: document.getElementById("grid"),
+        statusText: document.getElementById("statusText"),
+        svgPreview: document.getElementById("svgPreview"),
+        svgOutput: document.getElementById("svgOutput"),
+        copyBtn: document.getElementById("copyBtn"),
+        downloadBtn: document.getElementById("downloadBtn")
+      };
+
+      function createEmptyCells(rows, cols) {
+        return Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
+      }
+
+      function clampInt(value, min, max, fallback) {
+        const parsed = Number.parseInt(value, 10);
+        if (Number.isNaN(parsed)) {
+          return fallback;
+        }
+        return Math.min(max, Math.max(min, parsed));
+      }
+
+      function hslToHex(h, s, l) {
+        const sat = s / 100;
+        const light = l / 100;
+        const c = (1 - Math.abs((2 * light) - 1)) * sat;
+        const hp = h / 60;
+        const x = c * (1 - Math.abs((hp % 2) - 1));
+        let r = 0;
+        let g = 0;
+        let b = 0;
+
+        if (hp >= 0 && hp < 1) {
+          r = c;
+          g = x;
+        } else if (hp < 2) {
+          r = x;
+          g = c;
+        } else if (hp < 3) {
+          g = c;
+          b = x;
+        } else if (hp < 4) {
+          g = x;
+          b = c;
+        } else if (hp < 5) {
+          r = x;
+          b = c;
+        } else {
+          r = c;
+          b = x;
+        }
+
+        const m = light - (c / 2);
+        const toHex = (v) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      }
+
+      function autoColor(index) {
+        const hue = (index * 137.508) % 360;
+        return hslToHex(hue, 62, 70);
+      }
+
+      function getNextLabel() {
+        let max = 0;
+        for (const zone of state.zones) {
+          const label = Number.parseInt(zone.label, 10);
+          if (!Number.isNaN(label)) {
+            max = Math.max(max, label);
+          }
+        }
+        return max + 1;
+      }
+
+      function addZone(label = null) {
+        const zone = {
+          id: state.nextZoneId++,
+          label: label === null ? getNextLabel() : label,
+          color: autoColor(state.zones.length)
+        };
+        state.zones.push(zone);
+        state.activeZoneId = zone.id;
+        state.mode = "paint";
+        syncModeButtons();
+        renderAll();
+      }
+
+      function removeZone(zoneId) {
+        state.zones = state.zones.filter((zone) => zone.id !== zoneId);
+
+        for (let r = 0; r < state.rows; r += 1) {
+          for (let c = 0; c < state.cols; c += 1) {
+            if (state.cells[r][c] === zoneId) {
+              state.cells[r][c] = null;
+            }
+          }
+        }
+
+        if (!state.zones.some((zone) => zone.id === state.activeZoneId)) {
+          state.activeZoneId = state.zones.length ? state.zones[state.zones.length - 1].id : null;
+        }
+
+        renderAll();
+      }
+
+      function resizeGrid(newRows, newCols) {
+        const resized = createEmptyCells(newRows, newCols);
+        const rowsToCopy = Math.min(newRows, state.rows);
+        const colsToCopy = Math.min(newCols, state.cols);
+
+        for (let r = 0; r < rowsToCopy; r += 1) {
+          for (let c = 0; c < colsToCopy; c += 1) {
+            resized[r][c] = state.cells[r][c];
+          }
+        }
+
+        state.rows = newRows;
+        state.cols = newCols;
+        state.cells = resized;
+
+        renderAll();
+      }
+
+      function clearGrid() {
+        state.cells = createEmptyCells(state.rows, state.cols);
+        renderAll();
+      }
+
+      function syncInputs() {
+        els.rowsInput.value = String(state.rows);
+        els.colsInput.value = String(state.cols);
+      }
+
+      function syncModeButtons() {
+        const paintActive = state.mode === "paint";
+        els.paintModeBtn.classList.toggle("active", paintActive);
+        els.eraseModeBtn.classList.toggle("active", !paintActive);
+      }
+
+      function renderZones() {
+        els.zonesList.innerHTML = "";
+
+        if (!state.zones.length) {
+          const empty = document.createElement("p");
+          empty.className = "help";
+          empty.textContent = "No zones yet. Add one, then drag on the grid to paint.";
+          els.zonesList.appendChild(empty);
+          return;
+        }
+
+        for (const zone of state.zones) {
+          const item = document.createElement("div");
+          item.className = "zone-item";
+          item.classList.toggle("active", state.mode === "paint" && state.activeZoneId === zone.id);
+
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = "activeZone";
+          radio.checked = state.activeZoneId === zone.id;
+          radio.setAttribute("aria-label", `Select zone ${zone.label}`);
+          radio.addEventListener("change", () => {
+            state.activeZoneId = zone.id;
+            state.mode = "paint";
+            syncModeButtons();
+            renderAll();
+          });
+
+          const labelTag = document.createElement("span");
+          labelTag.textContent = "Label";
+
+          const labelInput = document.createElement("input");
+          labelInput.type = "number";
+          labelInput.min = "0";
+          labelInput.step = "1";
+          labelInput.value = String(zone.label);
+          labelInput.setAttribute("aria-label", `Zone ${zone.label} number`);
+          labelInput.addEventListener("input", () => {
+            const parsed = Number.parseInt(labelInput.value, 10);
+            if (!Number.isNaN(parsed)) {
+              zone.label = parsed;
+              refreshSvgOnly();
+            }
+          });
+
+          const colorInput = document.createElement("input");
+          colorInput.type = "color";
+          colorInput.value = zone.color;
+          colorInput.setAttribute("aria-label", `Zone ${zone.label} color`);
+          colorInput.addEventListener("input", () => {
+            zone.color = colorInput.value;
+            refreshGridOnly();
+            refreshSvgOnly();
+          });
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.textContent = "Delete";
+          deleteButton.addEventListener("click", () => {
+            removeZone(zone.id);
+          });
+
+          item.append(radio, labelTag, labelInput, colorInput, deleteButton);
+          els.zonesList.appendChild(item);
+        }
+      }
+
+      function getPreviewRect() {
+        if (!state.isDragging || !state.dragStart || !state.dragCurrent) {
+          return null;
+        }
+        const minRow = Math.min(state.dragStart.r, state.dragCurrent.r);
+        const maxRow = Math.max(state.dragStart.r, state.dragCurrent.r);
+        const minCol = Math.min(state.dragStart.c, state.dragCurrent.c);
+        const maxCol = Math.max(state.dragStart.c, state.dragCurrent.c);
+        return { minRow, maxRow, minCol, maxCol };
+      }
+
+      function isCellInPreview(row, col, previewRect) {
+        if (!previewRect) {
+          return false;
+        }
+        return row >= previewRect.minRow && row <= previewRect.maxRow && col >= previewRect.minCol && col <= previewRect.maxCol;
+      }
+
+      function zoneById(zoneId) {
+        return state.zones.find((zone) => zone.id === zoneId) || null;
+      }
+
+      function refreshGridOnly() {
+        const previewRect = getPreviewRect();
+        els.grid.style.setProperty("--cols", String(state.cols));
+        els.grid.innerHTML = "";
+
+        for (let r = 0; r < state.rows; r += 1) {
+          for (let c = 0; c < state.cols; c += 1) {
+            const cell = document.createElement("button");
+            cell.type = "button";
+            cell.className = "grid-cell";
+            cell.dataset.r = String(r);
+            cell.dataset.c = String(c);
+
+            const zoneId = state.cells[r][c];
+            const zone = zoneId !== null ? zoneById(zoneId) : null;
+            cell.style.background = zone ? zone.color : "#ffffff";
+            if (isCellInPreview(r, c, previewRect)) {
+              cell.classList.add("preview");
+            }
+
+            els.grid.appendChild(cell);
+          }
+        }
+      }
+
+      function escapeXml(text) {
+        return text
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("'", "&apos;");
+      }
+
+      function formatNumber(value) {
+        if (Number.isInteger(value)) {
+          return String(value);
+        }
+        return value.toFixed(2).replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1");
+      }
+
+      function buildRectanglesForZone(zoneId) {
+        const visited = createEmptyCells(state.rows, state.cols).map((row) => row.map(() => false));
+        const rects = [];
+
+        for (let r = 0; r < state.rows; r += 1) {
+          for (let c = 0; c < state.cols; c += 1) {
+            if (visited[r][c] || state.cells[r][c] !== zoneId) {
+              continue;
+            }
+
+            let width = 0;
+            while (c + width < state.cols && !visited[r][c + width] && state.cells[r][c + width] === zoneId) {
+              width += 1;
+            }
+
+            let height = 1;
+            let canExpand = true;
+            while (r + height < state.rows && canExpand) {
+              for (let k = c; k < c + width; k += 1) {
+                if (visited[r + height][k] || state.cells[r + height][k] !== zoneId) {
+                  canExpand = false;
+                  break;
+                }
+              }
+              if (canExpand) {
+                height += 1;
+              }
+            }
+
+            for (let rr = r; rr < r + height; rr += 1) {
+              for (let cc = c; cc < c + width; cc += 1) {
+                visited[rr][cc] = true;
+              }
+            }
+
+            rects.push({ x: c, y: r, width, height });
+          }
+        }
+
+        return rects;
+      }
+
+      function buildLabelPositionsForZone(zoneId) {
+        const visited = createEmptyCells(state.rows, state.cols).map((row) => row.map(() => false));
+        const labels = [];
+        const directions = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1]
+        ];
+
+        for (let r = 0; r < state.rows; r += 1) {
+          for (let c = 0; c < state.cols; c += 1) {
+            if (visited[r][c] || state.cells[r][c] !== zoneId) {
+              continue;
+            }
+
+            const queue = [[r, c]];
+            visited[r][c] = true;
+            let head = 0;
+            let minRow = r;
+            let maxRow = r;
+            let minCol = c;
+            let maxCol = c;
+
+            while (head < queue.length) {
+              const [row, col] = queue[head++];
+              minRow = Math.min(minRow, row);
+              maxRow = Math.max(maxRow, row);
+              minCol = Math.min(minCol, col);
+              maxCol = Math.max(maxCol, col);
+
+              for (const [dr, dc] of directions) {
+                const nr = row + dr;
+                const nc = col + dc;
+                if (nr < 0 || nr >= state.rows || nc < 0 || nc >= state.cols) {
+                  continue;
+                }
+                if (visited[nr][nc] || state.cells[nr][nc] !== zoneId) {
+                  continue;
+                }
+                visited[nr][nc] = true;
+                queue.push([nr, nc]);
+              }
+            }
+
+            labels.push({
+              x: (minCol + maxCol + 1) / 2,
+              y: (minRow + maxRow + 1) / 2
+            });
+          }
+        }
+
+        return labels;
+      }
+
+      function generateSvg() {
+        const rowCount = state.rows;
+        const colCount = state.cols;
+        const pxPerCell = 40;
+        const width = colCount * pxPerCell;
+        const height = rowCount * pxPerCell;
+
+        const fillLines = [];
+        const borderLines = [];
+        const labelLines = [];
+
+        for (const zone of state.zones) {
+          const rects = buildRectanglesForZone(zone.id);
+          if (!rects.length) {
+            continue;
+          }
+
+          for (const rect of rects) {
+            fillLines.push(`  <rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" fill="${zone.color}"/>`);
+            borderLines.push(`    <rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}"/>`);
+          }
+
+          const labels = buildLabelPositionsForZone(zone.id);
+          for (const labelPos of labels) {
+            labelLines.push(`    <text x="${formatNumber(labelPos.x)}" y="${formatNumber(labelPos.y)}">${escapeXml(String(zone.label))}</text>`);
+          }
+        }
+
+        const verticalGridLines = [];
+        for (let x = 0; x <= colCount; x += 1) {
+          verticalGridLines.push(`    <line x1="${x}" y1="0" x2="${x}" y2="${rowCount}"/>`);
+        }
+
+        const horizontalGridLines = [];
+        for (let y = 0; y <= rowCount; y += 1) {
+          horizontalGridLines.push(`    <line x1="0" y1="${y}" x2="${colCount}" y2="${y}"/>`);
+        }
+
+        return [
+          `<svg xmlns="http://www.w3.org/2000/svg"`,
+          `     width="${width}" height="${height}" viewBox="0 0 ${colCount} ${rowCount}"`,
+          `     preserveAspectRatio="none">`,
+          "",
+          `  <rect x="0" y="0" width="${colCount}" height="${rowCount}" fill="#fff"/>`,
+          "",
+          "  <!-- fills (cell units) -->",
+          ...(fillLines.length ? fillLines : ["  <!-- no zones painted yet -->"]),
+          "",
+          "  <!-- gridlines -->",
+          "  <g stroke=\"#888\" stroke-width=\"0.01\" vector-effect=\"non-scaling-stroke\" shape-rendering=\"crispEdges\">",
+          ...verticalGridLines,
+          ...horizontalGridLines,
+          "  </g>",
+          "",
+          "  <!-- zone borders -->",
+          "  <g fill=\"none\" stroke=\"#000\" stroke-width=\"0.06\" vector-effect=\"non-scaling-stroke\" shape-rendering=\"crispEdges\">",
+          ...(borderLines.length ? borderLines : ["    <!-- no zone borders yet -->"]),
+          "  </g>",
+          "",
+          "  <!-- labels -->",
+          "  <g font-family=\"sans-serif\" font-size=\"0.4\" font-weight=\"700\" fill=\"#000\"",
+          "     text-anchor=\"middle\" dominant-baseline=\"middle\">",
+          ...(labelLines.length ? labelLines : ["    <!-- no labels yet -->"]),
+          "  </g>",
+          "",
+          `  <rect x="0" y="0" width="${colCount}" height="${rowCount}"`,
+          "        fill=\"none\" stroke=\"#000\" stroke-width=\"0.06\"",
+          "        vector-effect=\"non-scaling-stroke\" shape-rendering=\"crispEdges\"/>",
+          "</svg>"
+        ].join("\n");
+      }
+
+      function refreshSvgOnly() {
+        const svg = generateSvg();
+        els.svgOutput.value = svg;
+        els.svgPreview.innerHTML = svg;
+      }
+
+      function setStatus(message, isWarning = false) {
+        els.statusText.textContent = message;
+        els.statusText.style.color = isWarning ? "var(--warning)" : "var(--muted)";
+      }
+
+      function renderAll() {
+        syncInputs();
+        renderZones();
+        refreshGridOnly();
+        refreshSvgOnly();
+
+        if (state.mode === "erase") {
+          setStatus("Mode: Erase. Drag on cells to clear them.");
+          return;
+        }
+
+        if (state.activeZoneId === null) {
+          setStatus("Mode: Paint. Add/select a zone first.", true);
+          return;
+        }
+
+        const zone = zoneById(state.activeZoneId);
+        if (!zone) {
+          setStatus("Mode: Paint. Add/select a zone first.", true);
+          return;
+        }
+
+        setStatus(`Mode: Paint zone ${zone.label}. Drag to fill a rectangle.`);
+      }
+
+      function getCellFromTarget(target) {
+        const cell = target.closest(".grid-cell");
+        if (!cell || !els.grid.contains(cell)) {
+          return null;
+        }
+        const r = Number.parseInt(cell.dataset.r, 10);
+        const c = Number.parseInt(cell.dataset.c, 10);
+        if (Number.isNaN(r) || Number.isNaN(c)) {
+          return null;
+        }
+        return { r, c };
+      }
+
+      function applyDragSelection() {
+        if (!state.dragStart || !state.dragCurrent) {
+          return;
+        }
+
+        const minRow = Math.min(state.dragStart.r, state.dragCurrent.r);
+        const maxRow = Math.max(state.dragStart.r, state.dragCurrent.r);
+        const minCol = Math.min(state.dragStart.c, state.dragCurrent.c);
+        const maxCol = Math.max(state.dragStart.c, state.dragCurrent.c);
+
+        const zoneId = state.mode === "erase" ? null : state.activeZoneId;
+        if (state.mode === "paint" && zoneId === null) {
+          setStatus("Select or add a zone before painting.", true);
+          return;
+        }
+
+        for (let r = minRow; r <= maxRow; r += 1) {
+          for (let c = minCol; c <= maxCol; c += 1) {
+            state.cells[r][c] = zoneId;
+          }
+        }
+      }
+
+      function setupEvents() {
+        els.resizeBtn.addEventListener("click", () => {
+          const rows = clampInt(els.rowsInput.value, 1, 64, state.rows);
+          const cols = clampInt(els.colsInput.value, 1, 64, state.cols);
+          resizeGrid(rows, cols);
+        });
+
+        els.clearGridBtn.addEventListener("click", () => {
+          clearGrid();
+        });
+
+        els.resetBtn.addEventListener("click", () => {
+          state.rows = 6;
+          state.cols = 12;
+          state.cells = createEmptyCells(6, 12);
+          state.zones = [];
+          state.activeZoneId = null;
+          state.mode = "paint";
+          state.nextZoneId = 1;
+          addZone(1);
+          renderAll();
+        });
+
+        els.paintModeBtn.addEventListener("click", () => {
+          state.mode = "paint";
+          syncModeButtons();
+          renderAll();
+        });
+
+        els.eraseModeBtn.addEventListener("click", () => {
+          state.mode = "erase";
+          syncModeButtons();
+          renderAll();
+        });
+
+        els.addZoneBtn.addEventListener("click", () => {
+          addZone();
+        });
+
+        els.grid.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) {
+            return;
+          }
+
+          const cell = getCellFromTarget(event.target);
+          if (!cell) {
+            return;
+          }
+
+          if (state.mode === "paint" && state.activeZoneId === null) {
+            setStatus("Select or add a zone before painting.", true);
+            return;
+          }
+
+          state.isDragging = true;
+          state.dragStart = cell;
+          state.dragCurrent = cell;
+          refreshGridOnly();
+          event.preventDefault();
+        });
+
+        els.grid.addEventListener("pointermove", (event) => {
+          if (!state.isDragging) {
+            return;
+          }
+          const cell = getCellFromTarget(event.target);
+          if (!cell) {
+            return;
+          }
+          if (!state.dragCurrent || state.dragCurrent.r !== cell.r || state.dragCurrent.c !== cell.c) {
+            state.dragCurrent = cell;
+            refreshGridOnly();
+          }
+        });
+
+        window.addEventListener("pointerup", () => {
+          if (!state.isDragging) {
+            return;
+          }
+          applyDragSelection();
+          state.isDragging = false;
+          state.dragStart = null;
+          state.dragCurrent = null;
+          renderAll();
+        });
+
+        els.copyBtn.addEventListener("click", async () => {
+          const svg = els.svgOutput.value;
+          try {
+            await navigator.clipboard.writeText(svg);
+            setStatus("SVG copied to clipboard.");
+          } catch {
+            els.svgOutput.select();
+            document.execCommand("copy");
+            setStatus("SVG copied using fallback copy.");
+          }
+        });
+
+        els.downloadBtn.addEventListener("click", () => {
+          const svg = els.svgOutput.value;
+          const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = `seed-tray-${state.cols}x${state.rows}.svg`;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          URL.revokeObjectURL(url);
+        });
+      }
+
+      function init() {
+        state.cells = createEmptyCells(state.rows, state.cols);
+        addZone(1);
+        setupEvents();
+        renderAll();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
