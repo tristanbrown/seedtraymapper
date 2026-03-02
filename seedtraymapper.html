@@ -712,14 +712,11 @@
         els.colsInput.max = String(CONFIG.grid.maxSize);
       }
 
-      function createZonesEmptyState() {
-        const empty = document.createElement("p");
-        empty.className = "help";
-        empty.textContent = "No zones yet. Add one, then drag on the grid to toggle cells.";
-        return empty;
-      }
+      function createZoneItem(zone) {
+        const item = document.createElement("div");
+        item.className = "zone-item";
+        item.classList.toggle("active", state.activeZoneId === zone.id);
 
-      function createZoneRadio(zone) {
         const radio = document.createElement("input");
         radio.type = "radio";
         radio.name = "activeZone";
@@ -729,10 +726,10 @@
           state.activeZoneId = zone.id;
           renderAll();
         });
-        return radio;
-      }
 
-      function createZoneLabelInput(zone) {
+        const labelTag = document.createElement("span");
+        labelTag.textContent = "Label";
+
         const labelInput = document.createElement("input");
         labelInput.type = "number";
         labelInput.min = "0";
@@ -747,10 +744,7 @@
             }, { afterChange: refreshSvgOnly });
           }
         });
-        return labelInput;
-      }
 
-      function createZoneColorInput(zone) {
         const colorInput = document.createElement("input");
         colorInput.type = "color";
         colorInput.value = zone.color;
@@ -768,33 +762,20 @@
             }
           });
         });
-        return colorInput;
-      }
 
-      function createZoneDeleteButton(zone) {
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.textContent = "Delete";
         deleteButton.addEventListener("click", () => {
           removeZone(zone.id);
         });
-        return deleteButton;
-      }
-
-      function createZoneItem(zone) {
-        const item = document.createElement("div");
-        item.className = "zone-item";
-        item.classList.toggle("active", state.activeZoneId === zone.id);
-
-        const labelTag = document.createElement("span");
-        labelTag.textContent = "Label";
 
         item.append(
-          createZoneRadio(zone),
+          radio,
           labelTag,
-          createZoneLabelInput(zone),
-          createZoneColorInput(zone),
-          createZoneDeleteButton(zone)
+          labelInput,
+          colorInput,
+          deleteButton
         );
 
         return item;
@@ -804,7 +785,10 @@
         els.zonesList.innerHTML = "";
 
         if (!state.zones.length) {
-          els.zonesList.appendChild(createZonesEmptyState());
+          const empty = document.createElement("p");
+          empty.className = "help";
+          empty.textContent = "No zones yet. Add one, then drag on the grid to toggle cells.";
+          els.zonesList.appendChild(empty);
           return;
         }
 
@@ -1076,12 +1060,6 @@
         return { verticalGridLines, horizontalGridLines };
       }
 
-      function buildSvgBorderLines() {
-        return buildZoneBorderSegments().map(
-          (segment) => `    <line x1="${segment.x1}" y1="${segment.y1}" x2="${segment.x2}" y2="${segment.y2}"/>`
-        );
-      }
-
       function assembleSvgDocument({
         rowCount,
         colCount,
@@ -1135,7 +1113,9 @@
         const height = rowCount * pxPerCell;
 
         const { fillLines, labelLines } = buildSvgZoneContent();
-        const borderLines = buildSvgBorderLines();
+        const borderLines = buildZoneBorderSegments().map(
+          (segment) => `    <line x1="${segment.x1}" y1="${segment.y1}" x2="${segment.x2}" y2="${segment.y2}"/>`
+        );
         const { verticalGridLines, horizontalGridLines } = buildSvgGridLines(rowCount, colCount);
 
         return assembleSvgDocument({
@@ -1356,20 +1336,12 @@
         window.addEventListener("pointerup", handleGlobalPointerUp);
       }
 
-      function bindShortcutEvents() {
-        window.addEventListener("keydown", handleGlobalKeydown);
-      }
-
-      function bindExportEvents() {
-        els.copyBtn.addEventListener("click", copySvgToClipboard);
-        els.downloadBtn.addEventListener("click", downloadSvg);
-      }
-
       function setupEvents() {
         bindControlEvents();
         bindGridEvents();
-        bindShortcutEvents();
-        bindExportEvents();
+        window.addEventListener("keydown", handleGlobalKeydown);
+        els.copyBtn.addEventListener("click", copySvgToClipboard);
+        els.downloadBtn.addEventListener("click", downloadSvg);
       }
 
       function init() {
