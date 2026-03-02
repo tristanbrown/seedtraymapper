@@ -446,32 +446,25 @@
         redoStack: []
       };
 
-      function cloneCells(cells) {
-        return cells.map((row) => row.slice());
-      }
-
-      function cloneZones(zones) {
-        return zones.map((zone) => ({ ...zone }));
-      }
-
       function snapshotState() {
-        return {
+        return structuredClone({
           rows: state.rows,
           cols: state.cols,
-          cells: cloneCells(state.cells),
-          zones: cloneZones(state.zones),
+          cells: state.cells,
+          zones: state.zones,
           activeZoneId: state.activeZoneId,
           nextZoneId: state.nextZoneId
-        };
+        });
       }
 
       function restoreSnapshot(snapshot) {
-        state.rows = snapshot.rows;
-        state.cols = snapshot.cols;
-        state.cells = cloneCells(snapshot.cells);
-        state.zones = cloneZones(snapshot.zones);
-        state.activeZoneId = snapshot.activeZoneId;
-        state.nextZoneId = snapshot.nextZoneId;
+        const next = structuredClone(snapshot);
+        state.rows = next.rows;
+        state.cols = next.cols;
+        state.cells = next.cells;
+        state.zones = next.zones;
+        state.activeZoneId = next.activeZoneId;
+        state.nextZoneId = next.nextZoneId;
       }
 
       function updateHistoryControls() {
@@ -808,13 +801,6 @@
         return { minRow, maxRow, minCol, maxCol };
       }
 
-      function isCellInPreview(row, col, previewRect) {
-        if (!previewRect) {
-          return false;
-        }
-        return row >= previewRect.minRow && row <= previewRect.maxRow && col >= previewRect.minCol && col <= previewRect.maxCol;
-      }
-
       function zoneById(zoneId) {
         return state.zones.find((zone) => zone.id === zoneId) || null;
       }
@@ -835,7 +821,13 @@
           const zoneId = state.cells[r][c];
           const zone = zoneId !== null ? zoneMap.get(zoneId) || null : null;
           cell.style.background = zone ? zone.color : "#ffffff";
-          if (isCellInPreview(r, c, previewRect)) {
+          if (
+            previewRect &&
+            r >= previewRect.minRow &&
+            r <= previewRect.maxRow &&
+            c >= previewRect.minCol &&
+            c <= previewRect.maxCol
+          ) {
             cell.classList.add("preview");
           }
 
@@ -1032,11 +1024,9 @@
           if (!rects.length) {
             continue;
           }
-
           for (const rect of rects) {
             fillLines.push(`  <rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" fill="${zone.color}"/>`);
           }
-
           const labels = buildLabelPositionsForZone(zone.id);
           for (const labelPos of labels) {
             labelLines.push(`    <text x="${formatNumber(labelPos.x)}" y="${formatNumber(labelPos.y)}" dy="${CONFIG.svg.labelDy}">${escapeXml(String(zone.label))}</text>`);
@@ -1051,12 +1041,10 @@
         for (let x = 0; x <= colCount; x += 1) {
           verticalGridLines.push(`    <line x1="${x}" y1="0" x2="${x}" y2="${rowCount}"/>`);
         }
-
         const horizontalGridLines = [];
         for (let y = 0; y <= rowCount; y += 1) {
           horizontalGridLines.push(`    <line x1="0" y1="${y}" x2="${colCount}" y2="${y}"/>`);
         }
-
         return { verticalGridLines, horizontalGridLines };
       }
 
@@ -1336,12 +1324,20 @@
         window.addEventListener("pointerup", handleGlobalPointerUp);
       }
 
+      function bindShortcutEvents() {
+        window.addEventListener("keydown", handleGlobalKeydown);
+      }
+
+      function bindExportEvents() {
+        els.copyBtn.addEventListener("click", copySvgToClipboard);
+        els.downloadBtn.addEventListener("click", downloadSvg);
+      }
+
       function setupEvents() {
         bindControlEvents();
         bindGridEvents();
-        window.addEventListener("keydown", handleGlobalKeydown);
-        els.copyBtn.addEventListener("click", copySvgToClipboard);
-        els.downloadBtn.addEventListener("click", downloadSvg);
+        bindShortcutEvents();
+        bindExportEvents();
       }
 
       function init() {
