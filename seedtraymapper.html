@@ -542,6 +542,18 @@
         return Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
       }
 
+      function forEachCell(rows, cols, visitor) {
+        for (let r = 0; r < rows; r += 1) {
+          for (let c = 0; c < cols; c += 1) {
+            visitor(r, c);
+          }
+        }
+      }
+
+      function forEachStateCell(visitor) {
+        forEachCell(state.rows, state.cols, visitor);
+      }
+
       function clampInt(value, min, max, fallback) {
         const parsed = Number.parseInt(value, 10);
         if (Number.isNaN(parsed)) {
@@ -642,13 +654,11 @@
         commitChange(() => {
           state.zones = state.zones.filter((zone) => zone.id !== zoneId);
 
-          for (let r = 0; r < state.rows; r += 1) {
-            for (let c = 0; c < state.cols; c += 1) {
-              if (state.cells[r][c] === zoneId) {
-                state.cells[r][c] = null;
-              }
+          forEachStateCell((r, c) => {
+            if (state.cells[r][c] === zoneId) {
+              state.cells[r][c] = null;
             }
-          }
+          });
 
           if (!state.zones.some((zone) => zone.id === state.activeZoneId)) {
             state.activeZoneId = state.zones.length ? state.zones[state.zones.length - 1].id : null;
@@ -665,11 +675,9 @@
           const rowsToCopy = Math.min(newRows, state.rows);
           const colsToCopy = Math.min(newCols, state.cols);
 
-          for (let r = 0; r < rowsToCopy; r += 1) {
-            for (let c = 0; c < colsToCopy; c += 1) {
-              resized[r][c] = state.cells[r][c];
-            }
-          }
+          forEachCell(rowsToCopy, colsToCopy, (r, c) => {
+            resized[r][c] = state.cells[r][c];
+          });
 
           state.rows = newRows;
           state.cols = newCols;
@@ -679,14 +687,11 @@
 
       function clearGrid(shouldRecord = true) {
         let hasPaintedCell = false;
-        for (let r = 0; r < state.rows && !hasPaintedCell; r += 1) {
-          for (let c = 0; c < state.cols; c += 1) {
-            if (state.cells[r][c] !== null) {
-              hasPaintedCell = true;
-              break;
-            }
+        forEachStateCell((r, c) => {
+          if (state.cells[r][c] !== null) {
+            hasPaintedCell = true;
           }
-        }
+        });
         if (!hasPaintedCell) {
           return;
         }
@@ -836,24 +841,22 @@
         els.grid.style.setProperty("--cols", String(state.cols));
         els.grid.innerHTML = "";
 
-        for (let r = 0; r < state.rows; r += 1) {
-          for (let c = 0; c < state.cols; c += 1) {
-            const cell = document.createElement("button");
-            cell.type = "button";
-            cell.className = "grid-cell";
-            cell.dataset.r = String(r);
-            cell.dataset.c = String(c);
+        forEachStateCell((r, c) => {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "grid-cell";
+          cell.dataset.r = String(r);
+          cell.dataset.c = String(c);
 
-            const zoneId = state.cells[r][c];
-            const zone = zoneId !== null ? zoneMap.get(zoneId) || null : null;
-            cell.style.background = zone ? zone.color : "#ffffff";
-            if (isCellInPreview(r, c, previewRect)) {
-              cell.classList.add("preview");
-            }
-
-            els.grid.appendChild(cell);
+          const zoneId = state.cells[r][c];
+          const zone = zoneId !== null ? zoneMap.get(zoneId) || null : null;
+          cell.style.background = zone ? zone.color : "#ffffff";
+          if (isCellInPreview(r, c, previewRect)) {
+            cell.classList.add("preview");
           }
-        }
+
+          els.grid.appendChild(cell);
+        });
       }
 
       function escapeXml(text) {
@@ -1013,27 +1016,25 @@
           segments.push({ x1: ax, y1: ay, x2: bx, y2: by });
         }
 
-        for (let r = 0; r < state.rows; r += 1) {
-          for (let c = 0; c < state.cols; c += 1) {
-            const zoneId = state.cells[r][c];
-            if (zoneId === null) {
-              continue;
-            }
-
-            if (r === 0 || state.cells[r - 1][c] !== zoneId) {
-              addSegment(c, r, c + 1, r);
-            }
-            if (c === state.cols - 1 || state.cells[r][c + 1] !== zoneId) {
-              addSegment(c + 1, r, c + 1, r + 1);
-            }
-            if (r === state.rows - 1 || state.cells[r + 1][c] !== zoneId) {
-              addSegment(c, r + 1, c + 1, r + 1);
-            }
-            if (c === 0 || state.cells[r][c - 1] !== zoneId) {
-              addSegment(c, r, c, r + 1);
-            }
+        forEachStateCell((r, c) => {
+          const zoneId = state.cells[r][c];
+          if (zoneId === null) {
+            return;
           }
-        }
+
+          if (r === 0 || state.cells[r - 1][c] !== zoneId) {
+            addSegment(c, r, c + 1, r);
+          }
+          if (c === state.cols - 1 || state.cells[r][c + 1] !== zoneId) {
+            addSegment(c + 1, r, c + 1, r + 1);
+          }
+          if (r === state.rows - 1 || state.cells[r + 1][c] !== zoneId) {
+            addSegment(c, r + 1, c + 1, r + 1);
+          }
+          if (c === 0 || state.cells[r][c - 1] !== zoneId) {
+            addSegment(c, r, c, r + 1);
+          }
+        });
 
         return segments;
       }
