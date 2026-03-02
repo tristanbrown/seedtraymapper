@@ -380,16 +380,48 @@
 
   <script>
     (() => {
+      const CONFIG = {
+        grid: {
+          defaultRows: 6,
+          defaultCols: 12,
+          minSize: 1,
+          maxSize: 64
+        },
+        zone: {
+          initialLabel: 1,
+          initialNextId: 1
+        },
+        history: {
+          maxSteps: 200
+        },
+        labels: {
+          yOffset: 0
+        },
+        svg: {
+          pixelsPerCell: 40,
+          labelDy: "0.35em"
+        },
+        messages: {
+          selectZoneToFill: "Add/select a zone first to fill blank cells.",
+          selectOrAddZoneBeforeFill: "Select or add a zone before filling blank cells.",
+          zoneSelectedSuffix: "selected. Drag to toggle cells in a rectangle.",
+          undoDone: "Undid last action.",
+          redoDone: "Redid last action.",
+          svgCopied: "SVG copied to clipboard.",
+          svgCopiedFallback: "SVG copied using fallback copy."
+        }
+      };
+
       const state = {
-        rows: 6,
-        cols: 12,
+        rows: CONFIG.grid.defaultRows,
+        cols: CONFIG.grid.defaultCols,
         cells: [],
         zones: [],
         activeZoneId: null,
         isDragging: false,
         dragStart: null,
         dragCurrent: null,
-        nextZoneId: 1
+        nextZoneId: CONFIG.zone.initialNextId
       };
 
       const els = {
@@ -409,8 +441,6 @@
         copyBtn: document.getElementById("copyBtn"),
         downloadBtn: document.getElementById("downloadBtn")
       };
-      const MAX_HISTORY_STEPS = 200;
-      const LABEL_Y_OFFSET = 0;
       const history = {
         undoStack: [],
         redoStack: []
@@ -451,7 +481,7 @@
 
       function pushUndoState() {
         history.undoStack.push(snapshotState());
-        if (history.undoStack.length > MAX_HISTORY_STEPS) {
+        if (history.undoStack.length > CONFIG.history.maxSteps) {
           history.undoStack.shift();
         }
         history.redoStack = [];
@@ -481,13 +511,13 @@
           return false;
         }
         history.redoStack.push(snapshotState());
-        if (history.redoStack.length > MAX_HISTORY_STEPS) {
+        if (history.redoStack.length > CONFIG.history.maxSteps) {
           history.redoStack.shift();
         }
         const previous = history.undoStack.pop();
         restoreSnapshot(previous);
         renderAll();
-        setStatus("Undid last action.");
+        setStatus(CONFIG.messages.undoDone);
         updateHistoryControls();
         return true;
       }
@@ -497,13 +527,13 @@
           return false;
         }
         history.undoStack.push(snapshotState());
-        if (history.undoStack.length > MAX_HISTORY_STEPS) {
+        if (history.undoStack.length > CONFIG.history.maxSteps) {
           history.undoStack.shift();
         }
         const next = history.redoStack.pop();
         restoreSnapshot(next);
         renderAll();
-        setStatus("Redid last action.");
+        setStatus(CONFIG.messages.redoDone);
         updateHistoryControls();
         return true;
       }
@@ -582,6 +612,22 @@
         return zone;
       }
 
+      function applyDefaultState() {
+        state.rows = CONFIG.grid.defaultRows;
+        state.cols = CONFIG.grid.defaultCols;
+        state.cells = createEmptyCells(state.rows, state.cols);
+        state.zones = [];
+        state.activeZoneId = null;
+        state.nextZoneId = CONFIG.zone.initialNextId;
+        appendZone(CONFIG.zone.initialLabel);
+      }
+
+      function resetToDefaultState(shouldRecord = true) {
+        commitChange(() => {
+          applyDefaultState();
+        }, { recordHistory: shouldRecord });
+      }
+
       function addZone(label = null, shouldRecord = true) {
         commitChange(() => {
           appendZone(label);
@@ -652,6 +698,13 @@
       function syncInputs() {
         els.rowsInput.value = String(state.rows);
         els.colsInput.value = String(state.cols);
+      }
+
+      function syncInputBounds() {
+        els.rowsInput.min = String(CONFIG.grid.minSize);
+        els.rowsInput.max = String(CONFIG.grid.maxSize);
+        els.colsInput.min = String(CONFIG.grid.minSize);
+        els.colsInput.max = String(CONFIG.grid.maxSize);
       }
 
       function createZonesEmptyState() {
@@ -927,7 +980,7 @@
 
             labels.push({
               x: bestCell.col + 0.5,
-              y: bestCell.row + 0.5 + LABEL_Y_OFFSET
+              y: bestCell.row + 0.5 + CONFIG.labels.yOffset
             });
           }
         }
@@ -988,7 +1041,7 @@
       function generateSvg() {
         const rowCount = state.rows;
         const colCount = state.cols;
-        const pxPerCell = 40;
+        const pxPerCell = CONFIG.svg.pixelsPerCell;
         const width = colCount * pxPerCell;
         const height = rowCount * pxPerCell;
 
@@ -1007,7 +1060,7 @@
 
           const labels = buildLabelPositionsForZone(zone.id);
           for (const labelPos of labels) {
-            labelLines.push(`    <text x="${formatNumber(labelPos.x)}" y="${formatNumber(labelPos.y)}" dy="0.35em">${escapeXml(String(zone.label))}</text>`);
+            labelLines.push(`    <text x="${formatNumber(labelPos.x)}" y="${formatNumber(labelPos.y)}" dy="${CONFIG.svg.labelDy}">${escapeXml(String(zone.label))}</text>`);
           }
         }
 
@@ -1078,17 +1131,17 @@
         updateHistoryControls();
 
         if (state.activeZoneId === null) {
-          setStatus("Add/select a zone first to fill blank cells.", true);
+          setStatus(CONFIG.messages.selectZoneToFill, true);
           return;
         }
 
         const zone = zoneById(state.activeZoneId);
         if (!zone) {
-          setStatus("Add/select a zone first to fill blank cells.", true);
+          setStatus(CONFIG.messages.selectZoneToFill, true);
           return;
         }
 
-        setStatus(`Zone ${zone.label} selected. Drag to toggle cells in a rectangle.`);
+        setStatus(`Zone ${zone.label} ${CONFIG.messages.zoneSelectedSuffix}`);
       }
 
       function getCellFromTarget(target) {
@@ -1150,7 +1203,7 @@
         }
 
         if (state.activeZoneId === null) {
-          setStatus("Select or add a zone before filling blank cells.", true);
+          setStatus(CONFIG.messages.selectOrAddZoneBeforeFill, true);
           return;
         }
 
@@ -1209,11 +1262,11 @@
         const svg = els.svgOutput.value;
         try {
           await navigator.clipboard.writeText(svg);
-          setStatus("SVG copied to clipboard.");
+          setStatus(CONFIG.messages.svgCopied);
         } catch {
           els.svgOutput.select();
           document.execCommand("copy");
-          setStatus("SVG copied using fallback copy.");
+          setStatus(CONFIG.messages.svgCopiedFallback);
         }
       }
 
@@ -1240,8 +1293,8 @@
         });
 
         els.resizeBtn.addEventListener("click", () => {
-          const rows = clampInt(els.rowsInput.value, 1, 64, state.rows);
-          const cols = clampInt(els.colsInput.value, 1, 64, state.cols);
+          const rows = clampInt(els.rowsInput.value, CONFIG.grid.minSize, CONFIG.grid.maxSize, state.rows);
+          const cols = clampInt(els.colsInput.value, CONFIG.grid.minSize, CONFIG.grid.maxSize, state.cols);
           resizeGrid(rows, cols);
         });
 
@@ -1250,15 +1303,7 @@
         });
 
         els.resetBtn.addEventListener("click", () => {
-          commitChange(() => {
-            state.rows = 6;
-            state.cols = 12;
-            state.cells = createEmptyCells(6, 12);
-            state.zones = [];
-            state.activeZoneId = null;
-            state.nextZoneId = 1;
-            appendZone(1);
-          });
+          resetToDefaultState();
         });
 
         els.addZoneBtn.addEventListener("click", () => {
@@ -1289,8 +1334,8 @@
       }
 
       function init() {
-        state.cells = createEmptyCells(state.rows, state.cols);
-        addZone(1, false);
+        applyDefaultState();
+        syncInputBounds();
         setupEvents();
         renderAll();
       }
