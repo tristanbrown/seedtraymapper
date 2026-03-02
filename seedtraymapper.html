@@ -1130,25 +1130,41 @@
         els.statusText.style.color = isWarning ? "var(--warning)" : "var(--muted)";
       }
 
+      function getActiveZone() {
+        return state.activeZoneId === null ? null : zoneById(state.activeZoneId);
+      }
+
+      function ensureActiveZoneOrWarn(message = CONFIG.messages.selectZoneToFill) {
+        const zone = getActiveZone();
+        if (!zone) {
+          setStatus(message, true);
+          return null;
+        }
+        return zone;
+      }
+
+      function getStatusMessage() {
+        const zone = getActiveZone();
+        if (!zone) {
+          return {
+            message: CONFIG.messages.selectZoneToFill,
+            isWarning: true
+          };
+        }
+        return {
+          message: `Zone ${zone.label} ${CONFIG.messages.zoneSelectedSuffix}`,
+          isWarning: false
+        };
+      }
+
       function renderAll() {
         syncInputs();
         renderZones();
         refreshGridOnly();
         refreshSvgOnly();
         updateHistoryControls();
-
-        if (state.activeZoneId === null) {
-          setStatus(CONFIG.messages.selectZoneToFill, true);
-          return;
-        }
-
-        const zone = zoneById(state.activeZoneId);
-        if (!zone) {
-          setStatus(CONFIG.messages.selectZoneToFill, true);
-          return;
-        }
-
-        setStatus(`Zone ${zone.label} ${CONFIG.messages.zoneSelectedSuffix}`);
+        const status = getStatusMessage();
+        setStatus(status.message, status.isWarning);
       }
 
       function getCellFromTarget(target) {
@@ -1171,11 +1187,12 @@
         return target.closest("input, textarea, select, [contenteditable='true']") !== null;
       }
 
-      function applyDragSelection() {
+      function toggleDragSelectionCells() {
         if (!state.dragStart || !state.dragCurrent) {
           return;
         }
-        if (state.activeZoneId === null) {
+        const activeZone = ensureActiveZoneOrWarn(CONFIG.messages.selectOrAddZoneBeforeFill);
+        if (!activeZone) {
           return;
         }
 
@@ -1187,10 +1204,7 @@
           for (let r = minRow; r <= maxRow; r += 1) {
             for (let c = minCol; c <= maxCol; c += 1) {
               if (state.cells[r][c] === null) {
-                if (state.activeZoneId === null) {
-                  continue;
-                }
-                state.cells[r][c] = state.activeZoneId;
+                state.cells[r][c] = activeZone.id;
               } else {
                 state.cells[r][c] = null;
               }
@@ -1209,8 +1223,7 @@
           return;
         }
 
-        if (state.activeZoneId === null) {
-          setStatus(CONFIG.messages.selectOrAddZoneBeforeFill, true);
+        if (!ensureActiveZoneOrWarn(CONFIG.messages.selectOrAddZoneBeforeFill)) {
           return;
         }
 
@@ -1239,7 +1252,7 @@
         if (!state.isDragging) {
           return;
         }
-        applyDragSelection();
+        toggleDragSelectionCells();
         state.isDragging = false;
         state.dragStart = null;
         state.dragCurrent = null;
