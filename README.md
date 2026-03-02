@@ -5,7 +5,7 @@ Open [seedtraymapper.html](seedtraymapper.html) in a browser.
 
 Features:
 - Starts with a blank `6x12` grid.
-- Click and drag to paint rectangular zones.
+- Click and drag to toggle rectangular selections (`blank -> selected zone`, `painted -> blank`).
 - Assign numeric labels per zone.
 - Auto-generated distinct colors for new zones, with optional per-zone color edits.
 - Resize the grid (for example `4x8`) while preserving overlapping painted cells.

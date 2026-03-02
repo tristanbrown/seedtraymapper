@@ -198,17 +198,6 @@
       color: #6f362f;
     }
 
-    .mode-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem;
-    }
-
-    .mode-btn.active {
-      background: #2f6a47;
-      color: #fff;
-    }
-
     .workspace {
       display: grid;
       gap: 1rem;
@@ -305,7 +294,7 @@
     <aside class="controls">
       <section class="panel">
         <h1>Seed Tray SVG Zone Mapper</h1>
-        <p class="help">Drag on the grid to paint rectangular zones. Each zone has a number label and color that exports into SVG.</p>
+        <p class="help">Drag on the grid to toggle cells. Blank cells fill with the selected zone; painted cells clear.</p>
       </section>
 
       <section class="panel">
@@ -324,14 +313,6 @@
         <div class="export-buttons" style="margin-top: 0.55rem;">
           <button id="clearGridBtn" class="secondary" type="button">Clear Grid</button>
           <button id="resetBtn" class="secondary" type="button">Reset 6x12</button>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Paint Mode</h2>
-        <div class="mode-row">
-          <button id="paintModeBtn" class="mode-btn active" type="button">Paint Zone</button>
-          <button id="eraseModeBtn" class="mode-btn" type="button">Erase</button>
         </div>
       </section>
 
@@ -375,7 +356,6 @@
         cells: [],
         zones: [],
         activeZoneId: null,
-        mode: "paint",
         isDragging: false,
         dragStart: null,
         dragCurrent: null,
@@ -388,8 +368,6 @@
         resizeBtn: document.getElementById("resizeBtn"),
         clearGridBtn: document.getElementById("clearGridBtn"),
         resetBtn: document.getElementById("resetBtn"),
-        paintModeBtn: document.getElementById("paintModeBtn"),
-        eraseModeBtn: document.getElementById("eraseModeBtn"),
         addZoneBtn: document.getElementById("addZoneBtn"),
         zonesList: document.getElementById("zonesList"),
         grid: document.getElementById("grid"),
@@ -471,8 +449,6 @@
         };
         state.zones.push(zone);
         state.activeZoneId = zone.id;
-        state.mode = "paint";
-        syncModeButtons();
         renderAll();
       }
 
@@ -522,12 +498,6 @@
         els.colsInput.value = String(state.cols);
       }
 
-      function syncModeButtons() {
-        const paintActive = state.mode === "paint";
-        els.paintModeBtn.classList.toggle("active", paintActive);
-        els.eraseModeBtn.classList.toggle("active", !paintActive);
-      }
-
       function renderZones() {
         els.zonesList.innerHTML = "";
 
@@ -542,7 +512,7 @@
         for (const zone of state.zones) {
           const item = document.createElement("div");
           item.className = "zone-item";
-          item.classList.toggle("active", state.mode === "paint" && state.activeZoneId === zone.id);
+          item.classList.toggle("active", state.activeZoneId === zone.id);
 
           const radio = document.createElement("input");
           radio.type = "radio";
@@ -551,8 +521,6 @@
           radio.setAttribute("aria-label", `Select zone ${zone.label}`);
           radio.addEventListener("change", () => {
             state.activeZoneId = zone.id;
-            state.mode = "paint";
-            syncModeButtons();
             renderAll();
           });
 
@@ -844,23 +812,18 @@
         refreshGridOnly();
         refreshSvgOnly();
 
-        if (state.mode === "erase") {
-          setStatus("Mode: Erase. Drag on cells to clear them.");
-          return;
-        }
-
         if (state.activeZoneId === null) {
-          setStatus("Mode: Paint. Add/select a zone first.", true);
+          setStatus("Add/select a zone first to fill blank cells.", true);
           return;
         }
 
         const zone = zoneById(state.activeZoneId);
         if (!zone) {
-          setStatus("Mode: Paint. Add/select a zone first.", true);
+          setStatus("Add/select a zone first to fill blank cells.", true);
           return;
         }
 
-        setStatus(`Mode: Paint zone ${zone.label}. Drag to fill a rectangle.`);
+        setStatus(`Zone ${zone.label} selected. Drag to toggle cells in a rectangle.`);
       }
 
       function getCellFromTarget(target) {
@@ -886,15 +849,16 @@
         const minCol = Math.min(state.dragStart.c, state.dragCurrent.c);
         const maxCol = Math.max(state.dragStart.c, state.dragCurrent.c);
 
-        const zoneId = state.mode === "erase" ? null : state.activeZoneId;
-        if (state.mode === "paint" && zoneId === null) {
-          setStatus("Select or add a zone before painting.", true);
-          return;
-        }
-
         for (let r = minRow; r <= maxRow; r += 1) {
           for (let c = minCol; c <= maxCol; c += 1) {
-            state.cells[r][c] = zoneId;
+            if (state.cells[r][c] === null) {
+              if (state.activeZoneId === null) {
+                continue;
+              }
+              state.cells[r][c] = state.activeZoneId;
+            } else {
+              state.cells[r][c] = null;
+            }
           }
         }
       }
@@ -916,21 +880,8 @@
           state.cells = createEmptyCells(6, 12);
           state.zones = [];
           state.activeZoneId = null;
-          state.mode = "paint";
           state.nextZoneId = 1;
           addZone(1);
-          renderAll();
-        });
-
-        els.paintModeBtn.addEventListener("click", () => {
-          state.mode = "paint";
-          syncModeButtons();
-          renderAll();
-        });
-
-        els.eraseModeBtn.addEventListener("click", () => {
-          state.mode = "erase";
-          syncModeButtons();
           renderAll();
         });
 
@@ -948,8 +899,8 @@
             return;
           }
 
-          if (state.mode === "paint" && state.activeZoneId === null) {
-            setStatus("Select or add a zone before painting.", true);
+          if (state.activeZoneId === null) {
+            setStatus("Select or add a zone before filling blank cells.", true);
             return;
           }
 
