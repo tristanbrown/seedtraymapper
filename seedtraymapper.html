@@ -377,7 +377,7 @@
         copyBtn: document.getElementById("copyBtn"),
         downloadBtn: document.getElementById("downloadBtn")
       };
-      const LABEL_Y_OFFSET = 0.06;
+      const LABEL_Y_OFFSET = 0;
 
       function createEmptyCells(rows, cols) {
         return Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
@@ -815,7 +815,7 @@
 
           const labels = buildLabelPositionsForZone(zone.id);
           for (const labelPos of labels) {
-            labelLines.push(`    <text x="${formatNumber(labelPos.x)}" y="${formatNumber(labelPos.y)}">${escapeXml(String(zone.label))}</text>`);
+            labelLines.push(`    <text x="${formatNumber(labelPos.x)}" y="${formatNumber(labelPos.y)}" dy="0.35em">${escapeXml(String(zone.label))}</text>`);
           }
         }
 
@@ -856,7 +856,7 @@
           "",
           "  <!-- labels -->",
           "  <g font-family=\"sans-serif\" font-size=\"0.4\" font-weight=\"700\" fill=\"#000\"",
-          "     text-anchor=\"middle\" dominant-baseline=\"middle\">",
+          "     text-anchor=\"middle\">",
           ...(labelLines.length ? labelLines : ["    <!-- no labels yet -->"]),
           "  </g>",
           "",
