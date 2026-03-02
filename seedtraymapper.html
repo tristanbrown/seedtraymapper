@@ -458,6 +458,24 @@
         updateHistoryControls();
       }
 
+      function commitChange(mutator, options = {}) {
+        const {
+          recordHistory = true,
+          afterChange = renderAll
+        } = options;
+
+        if (recordHistory) {
+          pushUndoState();
+        }
+
+        mutator();
+
+        if (typeof afterChange === "function") {
+          afterChange();
+        }
+        updateHistoryControls();
+      }
+
       function undo() {
         if (!history.undoStack.length) {
           return false;
@@ -553,10 +571,7 @@
         return max + 1;
       }
 
-      function addZone(label = null, shouldRecord = true) {
-        if (shouldRecord) {
-          pushUndoState();
-        }
+      function appendZone(label = null) {
         const zone = {
           id: state.nextZoneId++,
           label: label === null ? getNextLabel() : label,
@@ -564,7 +579,13 @@
         };
         state.zones.push(zone);
         state.activeZoneId = zone.id;
-        renderAll();
+        return zone;
+      }
+
+      function addZone(label = null, shouldRecord = true) {
+        commitChange(() => {
+          appendZone(label);
+        }, { recordHistory: shouldRecord });
       }
 
       function removeZone(zoneId, shouldRecord = true) {
@@ -572,48 +593,42 @@
         if (!hasZone) {
           return;
         }
-        if (shouldRecord) {
-          pushUndoState();
-        }
-        state.zones = state.zones.filter((zone) => zone.id !== zoneId);
+        commitChange(() => {
+          state.zones = state.zones.filter((zone) => zone.id !== zoneId);
 
-        for (let r = 0; r < state.rows; r += 1) {
-          for (let c = 0; c < state.cols; c += 1) {
-            if (state.cells[r][c] === zoneId) {
-              state.cells[r][c] = null;
+          for (let r = 0; r < state.rows; r += 1) {
+            for (let c = 0; c < state.cols; c += 1) {
+              if (state.cells[r][c] === zoneId) {
+                state.cells[r][c] = null;
+              }
             }
           }
-        }
 
-        if (!state.zones.some((zone) => zone.id === state.activeZoneId)) {
-          state.activeZoneId = state.zones.length ? state.zones[state.zones.length - 1].id : null;
-        }
-
-        renderAll();
+          if (!state.zones.some((zone) => zone.id === state.activeZoneId)) {
+            state.activeZoneId = state.zones.length ? state.zones[state.zones.length - 1].id : null;
+          }
+        }, { recordHistory: shouldRecord });
       }
 
       function resizeGrid(newRows, newCols, shouldRecord = true) {
         if (newRows === state.rows && newCols === state.cols) {
           return;
         }
-        if (shouldRecord) {
-          pushUndoState();
-        }
-        const resized = createEmptyCells(newRows, newCols);
-        const rowsToCopy = Math.min(newRows, state.rows);
-        const colsToCopy = Math.min(newCols, state.cols);
+        commitChange(() => {
+          const resized = createEmptyCells(newRows, newCols);
+          const rowsToCopy = Math.min(newRows, state.rows);
+          const colsToCopy = Math.min(newCols, state.cols);
 
-        for (let r = 0; r < rowsToCopy; r += 1) {
-          for (let c = 0; c < colsToCopy; c += 1) {
-            resized[r][c] = state.cells[r][c];
+          for (let r = 0; r < rowsToCopy; r += 1) {
+            for (let c = 0; c < colsToCopy; c += 1) {
+              resized[r][c] = state.cells[r][c];
+            }
           }
-        }
 
-        state.rows = newRows;
-        state.cols = newCols;
-        state.cells = resized;
-
-        renderAll();
+          state.rows = newRows;
+          state.cols = newCols;
+          state.cells = resized;
+        }, { recordHistory: shouldRecord });
       }
 
       function clearGrid(shouldRecord = true) {
@@ -629,11 +644,9 @@
         if (!hasPaintedCell) {
           return;
         }
-        if (shouldRecord) {
-          pushUndoState();
-        }
-        state.cells = createEmptyCells(state.rows, state.cols);
-        renderAll();
+        commitChange(() => {
+          state.cells = createEmptyCells(state.rows, state.cols);
+        }, { recordHistory: shouldRecord });
       }
 
       function syncInputs() {
@@ -679,10 +692,9 @@
           labelInput.addEventListener("change", () => {
             const parsed = Number.parseInt(labelInput.value, 10);
             if (!Number.isNaN(parsed) && parsed !== zone.label) {
-              pushUndoState();
-              zone.label = parsed;
-              refreshSvgOnly();
-              updateHistoryControls();
+              commitChange(() => {
+                zone.label = parsed;
+              }, { afterChange: refreshSvgOnly });
             }
           });
 
@@ -694,11 +706,14 @@
             if (colorInput.value === zone.color) {
               return;
             }
-            pushUndoState();
-            zone.color = colorInput.value;
-            refreshGridOnly();
-            refreshSvgOnly();
-            updateHistoryControls();
+            commitChange(() => {
+              zone.color = colorInput.value;
+            }, {
+              afterChange: () => {
+                refreshGridOnly();
+                refreshSvgOnly();
+              }
+            });
           });
 
           const deleteButton = document.createElement("button");
@@ -1080,20 +1095,20 @@
         const maxRow = Math.max(state.dragStart.r, state.dragCurrent.r);
         const minCol = Math.min(state.dragStart.c, state.dragCurrent.c);
         const maxCol = Math.max(state.dragStart.c, state.dragCurrent.c);
-        pushUndoState();
-
-        for (let r = minRow; r <= maxRow; r += 1) {
-          for (let c = minCol; c <= maxCol; c += 1) {
-            if (state.cells[r][c] === null) {
-              if (state.activeZoneId === null) {
-                continue;
+        commitChange(() => {
+          for (let r = minRow; r <= maxRow; r += 1) {
+            for (let c = minCol; c <= maxCol; c += 1) {
+              if (state.cells[r][c] === null) {
+                if (state.activeZoneId === null) {
+                  continue;
+                }
+                state.cells[r][c] = state.activeZoneId;
+              } else {
+                state.cells[r][c] = null;
               }
-              state.cells[r][c] = state.activeZoneId;
-            } else {
-              state.cells[r][c] = null;
             }
           }
-        }
+        }, { afterChange: null });
       }
 
       function setupEvents() {
@@ -1116,14 +1131,15 @@
         });
 
         els.resetBtn.addEventListener("click", () => {
-          pushUndoState();
-          state.rows = 6;
-          state.cols = 12;
-          state.cells = createEmptyCells(6, 12);
-          state.zones = [];
-          state.activeZoneId = null;
-          state.nextZoneId = 1;
-          addZone(1, false);
+          commitChange(() => {
+            state.rows = 6;
+            state.cols = 12;
+            state.cells = createEmptyCells(6, 12);
+            state.zones = [];
+            state.activeZoneId = null;
+            state.nextZoneId = 1;
+            appendZone(1);
+          });
         });
 
         els.addZoneBtn.addEventListener("click", () => {
