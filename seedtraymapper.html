@@ -1039,13 +1039,7 @@
         return segments;
       }
 
-      function generateSvg() {
-        const rowCount = state.rows;
-        const colCount = state.cols;
-        const pxPerCell = CONFIG.svg.pixelsPerCell;
-        const width = colCount * pxPerCell;
-        const height = rowCount * pxPerCell;
-
+      function buildSvgZoneContent() {
         const fillLines = [];
         const labelLines = [];
 
@@ -1065,10 +1059,10 @@
           }
         }
 
-        const borderLines = buildZoneBorderSegments().map(
-          (segment) => `    <line x1="${segment.x1}" y1="${segment.y1}" x2="${segment.x2}" y2="${segment.y2}"/>`
-        );
+        return { fillLines, labelLines };
+      }
 
+      function buildSvgGridLines(rowCount, colCount) {
         const verticalGridLines = [];
         for (let x = 0; x <= colCount; x += 1) {
           verticalGridLines.push(`    <line x1="${x}" y1="0" x2="${x}" y2="${rowCount}"/>`);
@@ -1079,6 +1073,26 @@
           horizontalGridLines.push(`    <line x1="0" y1="${y}" x2="${colCount}" y2="${y}"/>`);
         }
 
+        return { verticalGridLines, horizontalGridLines };
+      }
+
+      function buildSvgBorderLines() {
+        return buildZoneBorderSegments().map(
+          (segment) => `    <line x1="${segment.x1}" y1="${segment.y1}" x2="${segment.x2}" y2="${segment.y2}"/>`
+        );
+      }
+
+      function assembleSvgDocument({
+        rowCount,
+        colCount,
+        width,
+        height,
+        fillLines,
+        labelLines,
+        borderLines,
+        verticalGridLines,
+        horizontalGridLines
+      }) {
         return [
           `<svg xmlns="http://www.w3.org/2000/svg"`,
           `     width="${width}" height="${height}" viewBox="0 0 ${colCount} ${rowCount}"`,
@@ -1111,6 +1125,30 @@
           "        vector-effect=\"non-scaling-stroke\" shape-rendering=\"crispEdges\"/>",
           "</svg>"
         ].join("\n");
+      }
+
+      function generateSvg() {
+        const rowCount = state.rows;
+        const colCount = state.cols;
+        const pxPerCell = CONFIG.svg.pixelsPerCell;
+        const width = colCount * pxPerCell;
+        const height = rowCount * pxPerCell;
+
+        const { fillLines, labelLines } = buildSvgZoneContent();
+        const borderLines = buildSvgBorderLines();
+        const { verticalGridLines, horizontalGridLines } = buildSvgGridLines(rowCount, colCount);
+
+        return assembleSvgDocument({
+          rowCount,
+          colCount,
+          width,
+          height,
+          fillLines,
+          labelLines,
+          borderLines,
+          verticalGridLines,
+          horizontalGridLines
+        });
       }
 
       function refreshSvgOnly() {
