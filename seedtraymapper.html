@@ -654,77 +654,104 @@
         els.colsInput.value = String(state.cols);
       }
 
+      function createZonesEmptyState() {
+        const empty = document.createElement("p");
+        empty.className = "help";
+        empty.textContent = "No zones yet. Add one, then drag on the grid to toggle cells.";
+        return empty;
+      }
+
+      function createZoneRadio(zone) {
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "activeZone";
+        radio.checked = state.activeZoneId === zone.id;
+        radio.setAttribute("aria-label", `Select zone ${zone.label}`);
+        radio.addEventListener("change", () => {
+          state.activeZoneId = zone.id;
+          renderAll();
+        });
+        return radio;
+      }
+
+      function createZoneLabelInput(zone) {
+        const labelInput = document.createElement("input");
+        labelInput.type = "number";
+        labelInput.min = "0";
+        labelInput.step = "1";
+        labelInput.value = String(zone.label);
+        labelInput.setAttribute("aria-label", `Zone ${zone.label} number`);
+        labelInput.addEventListener("change", () => {
+          const parsed = Number.parseInt(labelInput.value, 10);
+          if (!Number.isNaN(parsed) && parsed !== zone.label) {
+            commitChange(() => {
+              zone.label = parsed;
+            }, { afterChange: refreshSvgOnly });
+          }
+        });
+        return labelInput;
+      }
+
+      function createZoneColorInput(zone) {
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.value = zone.color;
+        colorInput.setAttribute("aria-label", `Zone ${zone.label} color`);
+        colorInput.addEventListener("change", () => {
+          if (colorInput.value === zone.color) {
+            return;
+          }
+          commitChange(() => {
+            zone.color = colorInput.value;
+          }, {
+            afterChange: () => {
+              refreshGridOnly();
+              refreshSvgOnly();
+            }
+          });
+        });
+        return colorInput;
+      }
+
+      function createZoneDeleteButton(zone) {
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", () => {
+          removeZone(zone.id);
+        });
+        return deleteButton;
+      }
+
+      function createZoneItem(zone) {
+        const item = document.createElement("div");
+        item.className = "zone-item";
+        item.classList.toggle("active", state.activeZoneId === zone.id);
+
+        const labelTag = document.createElement("span");
+        labelTag.textContent = "Label";
+
+        item.append(
+          createZoneRadio(zone),
+          labelTag,
+          createZoneLabelInput(zone),
+          createZoneColorInput(zone),
+          createZoneDeleteButton(zone)
+        );
+
+        return item;
+      }
+
       function renderZones() {
         els.zonesList.innerHTML = "";
 
         if (!state.zones.length) {
-          const empty = document.createElement("p");
-          empty.className = "help";
-          empty.textContent = "No zones yet. Add one, then drag on the grid to toggle cells.";
-          els.zonesList.appendChild(empty);
+          els.zonesList.appendChild(createZonesEmptyState());
           return;
         }
 
         for (const zone of state.zones) {
-          const item = document.createElement("div");
-          item.className = "zone-item";
-          item.classList.toggle("active", state.activeZoneId === zone.id);
-
-          const radio = document.createElement("input");
-          radio.type = "radio";
-          radio.name = "activeZone";
-          radio.checked = state.activeZoneId === zone.id;
-          radio.setAttribute("aria-label", `Select zone ${zone.label}`);
-          radio.addEventListener("change", () => {
-            state.activeZoneId = zone.id;
-            renderAll();
-          });
-
-          const labelTag = document.createElement("span");
-          labelTag.textContent = "Label";
-
-          const labelInput = document.createElement("input");
-          labelInput.type = "number";
-          labelInput.min = "0";
-          labelInput.step = "1";
-          labelInput.value = String(zone.label);
-          labelInput.setAttribute("aria-label", `Zone ${zone.label} number`);
-          labelInput.addEventListener("change", () => {
-            const parsed = Number.parseInt(labelInput.value, 10);
-            if (!Number.isNaN(parsed) && parsed !== zone.label) {
-              commitChange(() => {
-                zone.label = parsed;
-              }, { afterChange: refreshSvgOnly });
-            }
-          });
-
-          const colorInput = document.createElement("input");
-          colorInput.type = "color";
-          colorInput.value = zone.color;
-          colorInput.setAttribute("aria-label", `Zone ${zone.label} color`);
-          colorInput.addEventListener("change", () => {
-            if (colorInput.value === zone.color) {
-              return;
-            }
-            commitChange(() => {
-              zone.color = colorInput.value;
-            }, {
-              afterChange: () => {
-                refreshGridOnly();
-                refreshSvgOnly();
-              }
-            });
-          });
-
-          const deleteButton = document.createElement("button");
-          deleteButton.type = "button";
-          deleteButton.textContent = "Delete";
-          deleteButton.addEventListener("click", () => {
-            removeZone(zone.id);
-          });
-
-          item.append(radio, labelTag, labelInput, colorInput, deleteButton);
-          els.zonesList.appendChild(item);
+          els.zonesList.appendChild(createZoneItem(zone));
         }
       }
 
@@ -1112,7 +1139,98 @@
         }, { afterChange: null });
       }
 
-      function setupEvents() {
+      function handleGridPointerDown(event) {
+        if (event.button !== 0) {
+          return;
+        }
+
+        const cell = getCellFromTarget(event.target);
+        if (!cell) {
+          return;
+        }
+
+        if (state.activeZoneId === null) {
+          setStatus("Select or add a zone before filling blank cells.", true);
+          return;
+        }
+
+        state.isDragging = true;
+        state.dragStart = cell;
+        state.dragCurrent = cell;
+        refreshGridOnly();
+        event.preventDefault();
+      }
+
+      function handleGridPointerMove(event) {
+        if (!state.isDragging) {
+          return;
+        }
+        const cell = getCellFromTarget(event.target);
+        if (!cell) {
+          return;
+        }
+        if (!state.dragCurrent || state.dragCurrent.r !== cell.r || state.dragCurrent.c !== cell.c) {
+          state.dragCurrent = cell;
+          refreshGridOnly();
+        }
+      }
+
+      function handleGlobalPointerUp() {
+        if (!state.isDragging) {
+          return;
+        }
+        applyDragSelection();
+        state.isDragging = false;
+        state.dragStart = null;
+        state.dragCurrent = null;
+        renderAll();
+      }
+
+      function handleGlobalKeydown(event) {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableTarget(event.target)) {
+          return;
+        }
+
+        const key = event.key.toLowerCase();
+        if (key === "z" && !event.shiftKey) {
+          if (undo()) {
+            event.preventDefault();
+          }
+          return;
+        }
+        if (key === "y" || (key === "z" && event.shiftKey)) {
+          if (redo()) {
+            event.preventDefault();
+          }
+        }
+      }
+
+      async function copySvgToClipboard() {
+        const svg = els.svgOutput.value;
+        try {
+          await navigator.clipboard.writeText(svg);
+          setStatus("SVG copied to clipboard.");
+        } catch {
+          els.svgOutput.select();
+          document.execCommand("copy");
+          setStatus("SVG copied using fallback copy.");
+        }
+      }
+
+      function downloadSvg() {
+        const svg = els.svgOutput.value;
+        const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `seed-tray-${state.cols}x${state.rows}.svg`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function bindControlEvents() {
         els.undoBtn.addEventListener("click", () => {
           undo();
         });
@@ -1146,97 +1264,28 @@
         els.addZoneBtn.addEventListener("click", () => {
           addZone();
         });
+      }
 
-        els.grid.addEventListener("pointerdown", (event) => {
-          if (event.button !== 0) {
-            return;
-          }
+      function bindGridEvents() {
+        els.grid.addEventListener("pointerdown", handleGridPointerDown);
+        els.grid.addEventListener("pointermove", handleGridPointerMove);
+        window.addEventListener("pointerup", handleGlobalPointerUp);
+      }
 
-          const cell = getCellFromTarget(event.target);
-          if (!cell) {
-            return;
-          }
+      function bindShortcutEvents() {
+        window.addEventListener("keydown", handleGlobalKeydown);
+      }
 
-          if (state.activeZoneId === null) {
-            setStatus("Select or add a zone before filling blank cells.", true);
-            return;
-          }
+      function bindExportEvents() {
+        els.copyBtn.addEventListener("click", copySvgToClipboard);
+        els.downloadBtn.addEventListener("click", downloadSvg);
+      }
 
-          state.isDragging = true;
-          state.dragStart = cell;
-          state.dragCurrent = cell;
-          refreshGridOnly();
-          event.preventDefault();
-        });
-
-        els.grid.addEventListener("pointermove", (event) => {
-          if (!state.isDragging) {
-            return;
-          }
-          const cell = getCellFromTarget(event.target);
-          if (!cell) {
-            return;
-          }
-          if (!state.dragCurrent || state.dragCurrent.r !== cell.r || state.dragCurrent.c !== cell.c) {
-            state.dragCurrent = cell;
-            refreshGridOnly();
-          }
-        });
-
-        window.addEventListener("pointerup", () => {
-          if (!state.isDragging) {
-            return;
-          }
-          applyDragSelection();
-          state.isDragging = false;
-          state.dragStart = null;
-          state.dragCurrent = null;
-          renderAll();
-        });
-
-        window.addEventListener("keydown", (event) => {
-          if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableTarget(event.target)) {
-            return;
-          }
-
-          const key = event.key.toLowerCase();
-          if (key === "z" && !event.shiftKey) {
-            if (undo()) {
-              event.preventDefault();
-            }
-            return;
-          }
-          if (key === "y" || (key === "z" && event.shiftKey)) {
-            if (redo()) {
-              event.preventDefault();
-            }
-          }
-        });
-
-        els.copyBtn.addEventListener("click", async () => {
-          const svg = els.svgOutput.value;
-          try {
-            await navigator.clipboard.writeText(svg);
-            setStatus("SVG copied to clipboard.");
-          } catch {
-            els.svgOutput.select();
-            document.execCommand("copy");
-            setStatus("SVG copied using fallback copy.");
-          }
-        });
-
-        els.downloadBtn.addEventListener("click", () => {
-          const svg = els.svgOutput.value;
-          const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-          const url = URL.createObjectURL(blob);
-          const anchor = document.createElement("a");
-          anchor.href = url;
-          anchor.download = `seed-tray-${state.cols}x${state.rows}.svg`;
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
-          URL.revokeObjectURL(url);
-        });
+      function setupEvents() {
+        bindControlEvents();
+        bindGridEvents();
+        bindShortcutEvents();
+        bindExportEvents();
       }
 
       function init() {
