@@ -752,6 +752,7 @@
 
       function refreshGridOnly() {
         const previewRect = getPreviewRect();
+        const zoneMap = new Map(state.zones.map((zone) => [zone.id, zone]));
         els.grid.style.setProperty("--cols", String(state.cols));
         els.grid.innerHTML = "";
 
@@ -764,7 +765,7 @@
             cell.dataset.c = String(c);
 
             const zoneId = state.cells[r][c];
-            const zone = zoneId !== null ? zoneById(zoneId) : null;
+            const zone = zoneId !== null ? zoneMap.get(zoneId) || null : null;
             cell.style.background = zone ? zone.color : "#ffffff";
             if (isCellInPreview(r, c, previewRect)) {
               cell.classList.add("preview");
