@@ -140,6 +140,13 @@
       transform: translateY(1px);
     }
 
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: none;
+      transform: none;
+    }
+
     button.secondary {
       background: #eef4ee;
       color: #2b4634;
@@ -314,6 +321,11 @@
           <button id="clearGridBtn" class="secondary" type="button">Clear Grid</button>
           <button id="resetBtn" class="secondary" type="button">Reset 6x12</button>
         </div>
+        <div class="export-buttons" style="margin-top: 0.55rem;">
+          <button id="undoBtn" class="secondary" type="button" disabled>Undo</button>
+          <button id="redoBtn" class="secondary" type="button" disabled>Redo</button>
+        </div>
+        <p class="help">Shortcuts: Ctrl+Z undo, Ctrl+Y redo.</p>
       </section>
 
       <section class="panel">
@@ -368,6 +380,8 @@
         resizeBtn: document.getElementById("resizeBtn"),
         clearGridBtn: document.getElementById("clearGridBtn"),
         resetBtn: document.getElementById("resetBtn"),
+        undoBtn: document.getElementById("undoBtn"),
+        redoBtn: document.getElementById("redoBtn"),
         addZoneBtn: document.getElementById("addZoneBtn"),
         zonesList: document.getElementById("zonesList"),
         grid: document.getElementById("grid"),
@@ -377,7 +391,86 @@
         copyBtn: document.getElementById("copyBtn"),
         downloadBtn: document.getElementById("downloadBtn")
       };
+      const MAX_HISTORY_STEPS = 200;
       const LABEL_Y_OFFSET = 0;
+      const history = {
+        undoStack: [],
+        redoStack: []
+      };
+
+      function cloneCells(cells) {
+        return cells.map((row) => row.slice());
+      }
+
+      function cloneZones(zones) {
+        return zones.map((zone) => ({ ...zone }));
+      }
+
+      function snapshotState() {
+        return {
+          rows: state.rows,
+          cols: state.cols,
+          cells: cloneCells(state.cells),
+          zones: cloneZones(state.zones),
+          activeZoneId: state.activeZoneId,
+          nextZoneId: state.nextZoneId
+        };
+      }
+
+      function restoreSnapshot(snapshot) {
+        state.rows = snapshot.rows;
+        state.cols = snapshot.cols;
+        state.cells = cloneCells(snapshot.cells);
+        state.zones = cloneZones(snapshot.zones);
+        state.activeZoneId = snapshot.activeZoneId;
+        state.nextZoneId = snapshot.nextZoneId;
+      }
+
+      function updateHistoryControls() {
+        els.undoBtn.disabled = history.undoStack.length === 0;
+        els.redoBtn.disabled = history.redoStack.length === 0;
+      }
+
+      function pushUndoState() {
+        history.undoStack.push(snapshotState());
+        if (history.undoStack.length > MAX_HISTORY_STEPS) {
+          history.undoStack.shift();
+        }
+        history.redoStack = [];
+        updateHistoryControls();
+      }
+
+      function undo() {
+        if (!history.undoStack.length) {
+          return false;
+        }
+        history.redoStack.push(snapshotState());
+        if (history.redoStack.length > MAX_HISTORY_STEPS) {
+          history.redoStack.shift();
+        }
+        const previous = history.undoStack.pop();
+        restoreSnapshot(previous);
+        renderAll();
+        setStatus("Undid last action.");
+        updateHistoryControls();
+        return true;
+      }
+
+      function redo() {
+        if (!history.redoStack.length) {
+          return false;
+        }
+        history.undoStack.push(snapshotState());
+        if (history.undoStack.length > MAX_HISTORY_STEPS) {
+          history.undoStack.shift();
+        }
+        const next = history.redoStack.pop();
+        restoreSnapshot(next);
+        renderAll();
+        setStatus("Redid last action.");
+        updateHistoryControls();
+        return true;
+      }
 
       function createEmptyCells(rows, cols) {
         return Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
@@ -442,7 +535,10 @@
         return max + 1;
       }
 
-      function addZone(label = null) {
+      function addZone(label = null, shouldRecord = true) {
+        if (shouldRecord) {
+          pushUndoState();
+        }
         const zone = {
           id: state.nextZoneId++,
           label: label === null ? getNextLabel() : label,
@@ -453,7 +549,14 @@
         renderAll();
       }
 
-      function removeZone(zoneId) {
+      function removeZone(zoneId, shouldRecord = true) {
+        const hasZone = state.zones.some((zone) => zone.id === zoneId);
+        if (!hasZone) {
+          return;
+        }
+        if (shouldRecord) {
+          pushUndoState();
+        }
         state.zones = state.zones.filter((zone) => zone.id !== zoneId);
 
         for (let r = 0; r < state.rows; r += 1) {
@@ -471,7 +574,13 @@
         renderAll();
       }
 
-      function resizeGrid(newRows, newCols) {
+      function resizeGrid(newRows, newCols, shouldRecord = true) {
+        if (newRows === state.rows && newCols === state.cols) {
+          return;
+        }
+        if (shouldRecord) {
+          pushUndoState();
+        }
         const resized = createEmptyCells(newRows, newCols);
         const rowsToCopy = Math.min(newRows, state.rows);
         const colsToCopy = Math.min(newCols, state.cols);
@@ -489,7 +598,22 @@
         renderAll();
       }
 
-      function clearGrid() {
+      function clearGrid(shouldRecord = true) {
+        let hasPaintedCell = false;
+        for (let r = 0; r < state.rows && !hasPaintedCell; r += 1) {
+          for (let c = 0; c < state.cols; c += 1) {
+            if (state.cells[r][c] !== null) {
+              hasPaintedCell = true;
+              break;
+            }
+          }
+        }
+        if (!hasPaintedCell) {
+          return;
+        }
+        if (shouldRecord) {
+          pushUndoState();
+        }
         state.cells = createEmptyCells(state.rows, state.cols);
         renderAll();
       }
@@ -505,7 +629,7 @@
         if (!state.zones.length) {
           const empty = document.createElement("p");
           empty.className = "help";
-          empty.textContent = "No zones yet. Add one, then drag on the grid to paint.";
+          empty.textContent = "No zones yet. Add one, then drag on the grid to toggle cells.";
           els.zonesList.appendChild(empty);
           return;
         }
@@ -534,11 +658,13 @@
           labelInput.step = "1";
           labelInput.value = String(zone.label);
           labelInput.setAttribute("aria-label", `Zone ${zone.label} number`);
-          labelInput.addEventListener("input", () => {
+          labelInput.addEventListener("change", () => {
             const parsed = Number.parseInt(labelInput.value, 10);
-            if (!Number.isNaN(parsed)) {
+            if (!Number.isNaN(parsed) && parsed !== zone.label) {
+              pushUndoState();
               zone.label = parsed;
               refreshSvgOnly();
+              updateHistoryControls();
             }
           });
 
@@ -546,10 +672,15 @@
           colorInput.type = "color";
           colorInput.value = zone.color;
           colorInput.setAttribute("aria-label", `Zone ${zone.label} color`);
-          colorInput.addEventListener("input", () => {
+          colorInput.addEventListener("change", () => {
+            if (colorInput.value === zone.color) {
+              return;
+            }
+            pushUndoState();
             zone.color = colorInput.value;
             refreshGridOnly();
             refreshSvgOnly();
+            updateHistoryControls();
           });
 
           const deleteButton = document.createElement("button");
@@ -883,6 +1014,7 @@
         renderZones();
         refreshGridOnly();
         refreshSvgOnly();
+        updateHistoryControls();
 
         if (state.activeZoneId === null) {
           setStatus("Add/select a zone first to fill blank cells.", true);
@@ -911,8 +1043,18 @@
         return { r, c };
       }
 
+      function isEditableTarget(target) {
+        if (!(target instanceof HTMLElement)) {
+          return false;
+        }
+        return target.closest("input, textarea, select, [contenteditable='true']") !== null;
+      }
+
       function applyDragSelection() {
         if (!state.dragStart || !state.dragCurrent) {
+          return;
+        }
+        if (state.activeZoneId === null) {
           return;
         }
 
@@ -920,6 +1062,7 @@
         const maxRow = Math.max(state.dragStart.r, state.dragCurrent.r);
         const minCol = Math.min(state.dragStart.c, state.dragCurrent.c);
         const maxCol = Math.max(state.dragStart.c, state.dragCurrent.c);
+        pushUndoState();
 
         for (let r = minRow; r <= maxRow; r += 1) {
           for (let c = minCol; c <= maxCol; c += 1) {
@@ -936,6 +1079,14 @@
       }
 
       function setupEvents() {
+        els.undoBtn.addEventListener("click", () => {
+          undo();
+        });
+
+        els.redoBtn.addEventListener("click", () => {
+          redo();
+        });
+
         els.resizeBtn.addEventListener("click", () => {
           const rows = clampInt(els.rowsInput.value, 1, 64, state.rows);
           const cols = clampInt(els.colsInput.value, 1, 64, state.cols);
@@ -947,14 +1098,14 @@
         });
 
         els.resetBtn.addEventListener("click", () => {
+          pushUndoState();
           state.rows = 6;
           state.cols = 12;
           state.cells = createEmptyCells(6, 12);
           state.zones = [];
           state.activeZoneId = null;
           state.nextZoneId = 1;
-          addZone(1);
-          renderAll();
+          addZone(1, false);
         });
 
         els.addZoneBtn.addEventListener("click", () => {
@@ -1008,6 +1159,25 @@
           renderAll();
         });
 
+        window.addEventListener("keydown", (event) => {
+          if (!(event.ctrlKey || event.metaKey) || event.altKey || isEditableTarget(event.target)) {
+            return;
+          }
+
+          const key = event.key.toLowerCase();
+          if (key === "z" && !event.shiftKey) {
+            if (undo()) {
+              event.preventDefault();
+            }
+            return;
+          }
+          if (key === "y" || (key === "z" && event.shiftKey)) {
+            if (redo()) {
+              event.preventDefault();
+            }
+          }
+        });
+
         els.copyBtn.addEventListener("click", async () => {
           const svg = els.svgOutput.value;
           try {
@@ -1036,7 +1206,7 @@
 
       function init() {
         state.cells = createEmptyCells(state.rows, state.cols);
-        addZone(1);
+        addZone(1, false);
         setupEvents();
         renderAll();
       }

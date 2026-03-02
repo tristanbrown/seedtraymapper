@@ -9,4 +9,5 @@ Features:
 - Assign numeric labels per zone.
 - Auto-generated distinct colors for new zones, with optional per-zone color edits.
 - Resize the grid (for example `4x8`) while preserving overlapping painted cells.
+- Undo/redo support via buttons and keyboard shortcuts (`Ctrl+Z`, `Ctrl+Y`).
 - Copy or download generated SVG output.
